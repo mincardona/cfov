@@ -1,0 +1,8 @@
+[package]
+name = "cfov"
+version = "0.1.0"
+authors = ["Michael Incardona <michael.incardona@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+getopts = "0.2"
