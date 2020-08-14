@@ -87,3 +87,22 @@ pub fn parse_aspect_ratio_dimension(text: &str) -> Result<f64, ()> {
         Err(_) => Err(()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hfov_typical() {
+        assert_about_eq(70.0, hfov(4.0, 3.0, 55.4));
+    }
+
+    #[test]
+    fn test_vfov_typical() {
+        assert_about_eq(55.0, vfov(4.0, 3.0, 69.5));
+    }
+
+    fn assert_about_eq(expected: f64, actual: f64) {
+        assert!((expected - actual).abs() < 0.5, "assert_about_eq failed: expected {}, actual {}", expected, actual);
+    }
+}
