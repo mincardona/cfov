@@ -51,9 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Must specify aspect ratio and input FOV. Use --help for usage information".into());
     }
 
-    // TODO: check input fov is not infinity, NaN, etc.
     config.ratio_text = matches.free[0].clone();
-    config.fov = match matches.free[1].parse() {
+    config.fov = match cfov::parse_fov(&matches.free[1]) {
         Ok(f) => f,
         Err(_) => return Err("Unable to parse input FOV as a floating point number. Use --help for usage information".into()),
     };

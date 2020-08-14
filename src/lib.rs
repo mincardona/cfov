@@ -16,19 +16,18 @@ pub fn run(config: &Config) -> Result<(), String> {
 }
 
 fn parse_aspect_ratio_string(ratio_str: &str) -> Result<(f64, f64), String> {
-    // TODO: check infinity, NaN, etc.
     let ratio_str_parts : Vec<&str> = ratio_str.split(':').collect();
     if ratio_str_parts.len() != 2 {
-        return Err("No separator in aspect ratio string".to_string());
+        return Err("No separator in aspect ratio string".into());
     }
 
-    let width: f64 = match ratio_str_parts[0].parse() {
+    let width = match parse_aspect_ratio_dimension(ratio_str_parts[0]) {
         Ok(f) => f,
-        Err(_) => return Err("Unable to parse width in aspect ratio string".to_string()),
+        Err(_) => return Err("Unable to parse width in aspect ratio string".into()),
     };
-    let height: f64 = match ratio_str_parts[1].parse() {
+    let height = match parse_aspect_ratio_dimension(ratio_str_parts[1]) {
         Ok(f) => f,
-        Err(_) => return Err("Unable to parse height in aspect ratio string".to_string()),
+        Err(_) => return Err("Unable to parse height in aspect ratio string".into()),
     };
     
     Ok((width, height))
@@ -64,5 +63,29 @@ impl Config {
             ratio_text: "4:3".to_string(),
             fov: 90.0,
         }
+    }
+}
+
+pub fn parse_fov(text: &str) -> Result<f64, ()> {
+    match text.parse::<f64>() {
+        Ok(f) =>
+            if f.is_finite() && f > 0.0 {
+                Ok(f)
+            } else {
+                Err(())
+            },
+        Err(_) => Err(()),
+    }
+}
+
+pub fn parse_aspect_ratio_dimension(text: &str) -> Result<f64, ()> {
+    match text.parse::<f64>() {
+        Ok(f) =>
+            if f.is_finite() && f > 0.0 {
+                Ok(f)
+            } else {
+                Err(())
+            },
+        Err(_) => Err(()),
     }
 }
