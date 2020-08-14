@@ -4,11 +4,9 @@ pub fn run(config: &Config) -> Result<(), String> {
     let output_fov = match config.output_fov_type {
         FovType::VERTICAL => vfov,
         FovType::HORIZONTAL => hfov,
-    }(width, height, config.fov.to_radians());
+    }(width, height, config.fov);
 
     // TODO: check return value
-
-    let output_fov = output_fov.to_degrees();
 
     println!("{}", output_fov);
 
@@ -35,12 +33,12 @@ fn parse_aspect_ratio_string(ratio_str: &str) -> Result<(f64, f64), String> {
 
 fn vfov(width: f64, height: f64, hfov: f64) -> f64 {
     // TODO: check for division by zero / arithmetic problems
-    ((hfov / 2.0).tan() * height / width).atan() * 2.0
+    ((hfov / 2.0).to_radians().tan() * height / width).atan().to_degrees() * 2.0
 }
 
 fn hfov(width: f64, height: f64, vfov: f64) -> f64 {
     // TODO: check for division by zero / arithmetic problems
-    ((vfov / 2.0).tan() * width / height).atan() * 2.0
+    ((vfov / 2.0).to_radians().tan() * width / height).atan().to_degrees() * 2.0
 }
 
 #[derive(Debug)]
