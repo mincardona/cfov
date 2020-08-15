@@ -1,90 +1,167 @@
-pub fn run(config: &Config) -> Result<(), String> {
-    let (width, height) = parse_aspect_ratio_string(&config.ratio_text)?;
+use std::convert::TryFrom;
+use std::convert::TryInto;
+use std::fmt;
 
+pub fn run(config: &Config) -> Result<(), String> {
     let output_fov = match config.output_fov_type {
         FovType::VERTICAL => vfov,
         FovType::HORIZONTAL => hfov,
-    }(width, height, config.fov);
-
-    // TODO: check return value
+    }(config.aspect_ratio, config.fov);
 
     println!("{}", output_fov);
 
     Ok(())
 }
 
-fn parse_aspect_ratio_string(ratio_str: &str) -> Result<(f64, f64), String> {
-    let ratio_str_parts : Vec<&str> = ratio_str.split(':').collect();
-    if ratio_str_parts.len() != 2 {
-        return Err("No separator in aspect ratio string".into());
+fn vfov(aspect_ratio: AspectRatio, hfov: Fov) -> Fov {
+    let f = ((hfov.value() / 2.0).to_radians().tan() * aspect_ratio.value().recip()).atan().to_degrees() * 2.0;
+    f.try_into().unwrap()
+}
+
+fn hfov(aspect_ratio: AspectRatio, vfov: Fov) -> Fov {
+    let f = ((vfov.value() / 2.0).to_radians().tan() * aspect_ratio.value()).atan().to_degrees() * 2.0;
+    f.try_into().unwrap()
+}
+
+// Fov
+
+#[derive(Debug, Copy, Clone)]
+pub struct Fov {
+    value: f64
+}
+
+impl Fov {
+    pub fn value(&self) -> f64 {
+        self.value
     }
-
-    let width = match parse_aspect_ratio_dimension(ratio_str_parts[0]) {
-        Ok(f) => f,
-        Err(_) => return Err("Unable to parse width in aspect ratio string".into()),
-    };
-    let height = match parse_aspect_ratio_dimension(ratio_str_parts[1]) {
-        Ok(f) => f,
-        Err(_) => return Err("Unable to parse height in aspect ratio string".into()),
-    };
-    
-    Ok((width, height))
 }
 
-fn vfov(width: f64, height: f64, hfov: f64) -> f64 {
-    // TODO: check for division by zero / arithmetic problems
-    ((hfov / 2.0).to_radians().tan() * height / width).atan().to_degrees() * 2.0
+impl TryFrom<f64> for Fov {
+    type Error = &'static str;
+
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        if !value.is_finite() || value <= 0.0 || value > 180.0 {
+            Err("Floating-point value out of Fov range")
+        } else {
+            Ok(Fov { value })
+        }
+    }
 }
 
-fn hfov(width: f64, height: f64, vfov: f64) -> f64 {
-    // TODO: check for division by zero / arithmetic problems
-    ((vfov / 2.0).to_radians().tan() * width / height).atan().to_degrees() * 2.0
+impl TryFrom<&str> for Fov {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.parse::<f64>() {
+            Ok(f) => f.try_into(),
+            Err(_) => Err("Couldn't parse string as floating-point Fov"),
+        }
+    }
 }
 
-#[derive(Debug)]
+impl From<Fov> for f64 {
+    fn from(value: Fov) -> f64 {
+        value.value
+    }
+}
+
+impl fmt::Display for Fov {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+// AspectRatio
+
+#[derive(Debug, Copy, Clone)]
+pub struct AspectRatio {
+    // width/height
+    value: f64
+}
+
+impl AspectRatio {
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+impl TryFrom<f64> for AspectRatio {
+    type Error = &'static str;
+
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        if !value.is_finite() || value <= 0.0 {
+            Err("Floating-point value out of AspectRatio range")
+        } else {
+            Ok(AspectRatio { value })
+        }
+    }
+}
+
+impl TryFrom<&str> for AspectRatio {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let ratio_str_parts : Vec<&str> = value.split(':').collect();
+
+        match ratio_str_parts.len() {
+            // single value, like "1.33"
+            1 => {
+                match ratio_str_parts[0].parse::<f64>() {
+                    Ok(f) => f.try_into(),
+                    Err(_) => Err("Unable to parse AspectRatio string as floating-point number")
+                }
+            },
+            // pair of values, like "4:3"
+            2 => {
+                let width: f64 = match ratio_str_parts[0].parse() {
+                    Ok(f) => f,
+                    Err(_) => return Err("Unable to parse width in AspectRatio string")
+                };
+                let height: f64 = match ratio_str_parts[1].parse() {
+                    Ok(f) => f,
+                    Err(_) => return Err("Unable to parse height in AspectRatio string")
+                };
+                if height == 0.0 {
+                    Err("AspectRatio cannot have zero height")
+                } else {
+                    (width / height).try_into()
+                }
+            },
+            _ => {
+                Err("Unable to parse AspectRatio string")
+            }
+        }
+    }
+}
+
+impl From<AspectRatio> for f64 {
+    fn from(value: AspectRatio) -> f64 {
+        value.value
+    }
+}
+
+// Config
+
+#[derive(Debug, Clone)]
 pub enum FovType {
     VERTICAL,
     HORIZONTAL,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub output_fov_type: FovType,
-    pub ratio_text: String,
-    pub fov: f64,
+    pub aspect_ratio: AspectRatio,
+    pub fov: Fov,
 }
 
-impl Config {
-    pub fn new() -> Config {
+impl Default for Config {
+    fn default() -> Config {
         Config {
             output_fov_type: FovType::VERTICAL,
-            ratio_text: "4:3".to_string(),
-            fov: 90.0,
+            aspect_ratio: (4.0f64 / 3.0f64).try_into().unwrap(),
+            fov: 90.0f64.try_into().unwrap(),
         }
-    }
-}
-
-pub fn parse_fov(text: &str) -> Result<f64, ()> {
-    match text.parse::<f64>() {
-        Ok(f) =>
-            if f.is_finite() && f > 0.0 {
-                Ok(f)
-            } else {
-                Err(())
-            },
-        Err(_) => Err(()),
-    }
-}
-
-pub fn parse_aspect_ratio_dimension(text: &str) -> Result<f64, ()> {
-    match text.parse::<f64>() {
-        Ok(f) =>
-            if f.is_finite() && f > 0.0 {
-                Ok(f)
-            } else {
-                Err(())
-            },
-        Err(_) => Err(()),
     }
 }
 
@@ -94,12 +171,16 @@ mod tests {
 
     #[test]
     fn test_hfov_typical() {
-        assert_about_eq(70.0, hfov(4.0, 3.0, 55.4));
+        let ratio = AspectRatio::try_from("4:3").unwrap();
+        let fov = Fov::try_from(55.4).unwrap();
+        assert_about_eq(70.0, hfov(ratio, fov).into());
     }
 
     #[test]
     fn test_vfov_typical() {
-        assert_about_eq(55.0, vfov(4.0, 3.0, 69.5));
+        let ratio = AspectRatio::try_from(4.0 / 3.0).unwrap();
+        let fov = Fov::try_from(69.5).unwrap();
+        assert_about_eq(55.0, vfov(ratio, fov).into());
     }
 
     fn assert_about_eq(expected: f64, actual: f64) {

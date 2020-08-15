@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 /*
 fov -v 16:9 90  # get vertical FOV from 90 degrees horizontal at 16:9
 fov -h 4:3 55.5  # get horizontal FOV from 55 degrees vertical at 4:3
@@ -11,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: come up with an error message formatter function
     let args: Vec<String> = std::env::args().collect();
 
-    if args.len() == 0 {
+    if args.is_empty() {
         print_help();
         return Ok(());
     }
@@ -34,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let mut config = cfov::Config::new();
+    let mut config = cfov::Config::default();
 
     config.output_fov_type = if matches.opt_present("v") {
         if matches.opt_present("h") {
@@ -51,11 +53,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Must specify aspect ratio and input FOV. Use --help for usage information".into());
     }
 
-    config.ratio_text = matches.free[0].clone();
-    config.fov = match cfov::parse_fov(&matches.free[1]) {
-        Ok(f) => f,
-        Err(_) => return Err("Unable to parse input FOV as a floating point number. Use --help for usage information".into()),
-    };
+    config.aspect_ratio = matches.free[0][..].try_into()?;
+    config.fov = matches.free[1][..].try_into()?;
 
     // TODO: find a way to return this directly
     cfov::run(&config)?;
