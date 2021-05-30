@@ -9,7 +9,7 @@ fov -h 4:3 55.5  # get horizontal FOV from 55 degrees vertical at 4:3
 --version
 --help
 */
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     // TODO: come up with an error message formatter function
     let args: Vec<String> = std::env::args().collect();
 
@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     config.output_fov_type = if matches.opt_present("v") {
         if matches.opt_present("h") {
+            // stdlib includes `impl From<String> for Box<dyn Error>`
             return Err("Cannot specify both -h and -v. Use --help for usage information".into());
         }
         cfov::FovType::VERTICAL
@@ -56,10 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.aspect_ratio = matches.free[0][..].try_into()?;
     config.fov = matches.free[1][..].try_into()?;
 
-    // TODO: find a way to return this directly
-    cfov::run(&config)?;
-
-    Ok(())
+    Ok(cfov::run(&config)?)
 }
 
 fn print_help() {
